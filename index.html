@@ -42,7 +42,7 @@
             <input type="tel" id="phone" placeholder="08xxxxxxxx" required>
         </div>
         <div class="form-group">
-            <label>วันที่นัดหมาย</label>
+            <label>วันที่นัดหมาย <span style="color: red; font-size: 12px;">(1 วัน รับ 1 นัด)</span></label>
             <input type="date" id="date" required>
         </div>
         <div class="form-group">
@@ -64,12 +64,31 @@
 <div class="footer">© สถานีตำรวจภูธรเมืองกาฬสินธุ์</div>
 
 <script>
-    // *** วาง URL ของ Google Apps Script ของคุณที่นี่ ***
-    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxDMTvaznhIdYfHtD01WKO7DPBkOeI8DbTLqJkLJXhOlr4VGEMri_H4OKyoNKAtCwa1/exec';
+    const WEB_APP_URL ='https://script.google.com/macros/s/AKfycbyCl6GA71pjgH9Gd2SEI0KhwRbBlUg6gEhsc4GnkeaLzOKUTP9n3wcXpMivM-6_kXbT/exec';
 
-    // ตั้งค่าวันที่ขั้นต่ำเป็นวันนี้
+    // 1. ตั้งค่าวันที่ขั้นต่ำเป็นวันนี้
     document.getElementById('date').min = new Date().toISOString().split('T')[0];
 
+    // 2. [เพิ่มใหม่] ฟังก์ชันดึงวันที่จองแล้วมาบล็อกในปฏิทิน
+    async function disableBookedDates() {
+        try {
+            const response = await fetch(WEB_APP_URL);
+            const bookedDates = await response.json();
+            const dateInput = document.getElementById('date');
+            
+            dateInput.addEventListener('change', function() {
+                if (bookedDates.includes(this.value)) {
+                    alert('❌ ขออภัย วันที่ ' + this.value + ' มีผู้นัดหมายเต็มแล้ว กรุณาเลือกวันอื่นครับ');
+                    this.value = ''; // ล้างค่าออกเพื่อให้เลือกใหม่
+                }
+            });
+        } catch (error) {
+            console.log('ระบบกำลังโหลดข้อมูลคิว...');
+        }
+    }
+    disableBookedDates(); // เรียกใช้งานทันที
+
+    // 3. ฟังก์ชันส่งข้อมูลนัดหมาย
     document.getElementById('bookingForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
@@ -98,13 +117,15 @@
                 status.style.display = 'block';
                 status.style.backgroundColor = '#f8d7da';
                 status.style.color = '#721c24';
-                status.innerText = '❌ ขออภัย ช่วงเวลานี้มีผู้อื่นนัดแล้ว';
+                status.innerText = '❌ วันนี้มีผู้จองเต็มแล้ว โปรดเลือกวันที่อื่น';
             } else if (result === 'success') {
                 status.style.display = 'block';
                 status.style.backgroundColor = '#d4edda';
                 status.style.color = '#155724';
                 status.innerText = '✅ นัดหมายสำเร็จแล้ว!';
                 document.getElementById('bookingForm').reset();
+                // รีโหลดหน้าเพื่อให้ปฏิทินอัปเดตสถานะล่าสุด
+                setTimeout(() => { location.reload(); }, 2000);
             }
         } catch (error) {
             alert('เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล');
